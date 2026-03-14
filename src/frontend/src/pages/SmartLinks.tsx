@@ -2,8 +2,6 @@ import {
   ArrowLeft,
   Download,
   ExternalLink,
-  Globe,
-  Leaf,
   Mail,
   MessageCircle,
   Plus,
@@ -24,6 +22,42 @@ EMAIL:sbzintl@gmail.com
 URL:https://web.sbze.in
 ADR;TYPE=WORK:;;Kerala;India
 END:VCARD`;
+
+const EMOJI_RULES: [RegExp, string][] = [
+  [/rice|basmati|grain/i, "🌾"],
+  [/cashew|kaju|nut/i, "🥜"],
+  [/sunflower|sunvia|edible oil|palm oil/i, "🌻"],
+  [/africa|ivory|coast|\bivc\b/i, "🌍"],
+  [/website|corporate|hub|\bmain\b/i, "🌐"],
+  [/wheat|flour/i, "🌾"],
+  [/spice|pepper/i, "🌶️"],
+  [/sugar|sweet/i, "🍬"],
+  [/cotton|textile/i, "🧵"],
+  [/palm|coconut/i, "🌴"],
+  [/tea|coffee/i, "☕"],
+  [/fish|seafood|aqua/i, "🐟"],
+  [/fruit|mango|banana/i, "🍋"],
+  [/vegetable|tomato|onion/i, "🥦"],
+  [/trade|export|import|exim/i, "📦"],
+  [/finance|bank|payment/i, "💳"],
+  [/news|blog|media/i, "📰"],
+  [/contact|phone|call/i, "📞"],
+  [/social|instagram|facebook|linkedin|twitter/i, "📱"],
+  [/youtube|video/i, "🎬"],
+  [/map|location|address/i, "📍"],
+  [/shop|store|market/i, "🛒"],
+  [/logistics|\bship/i, "🚢"],
+  [/\boil\b/i, "🫙"],
+  [/\bweb\b/i, "🌐"],
+];
+
+function getEmojiFromText(name: string, desc: string): string {
+  const combined = `${name} ${desc}`;
+  for (const [regex, emoji] of EMOJI_RULES) {
+    if (regex.test(combined)) return emoji;
+  }
+  return "🔗";
+}
 
 const DEFAULT_LINKS = [
   {
@@ -88,9 +122,13 @@ export default function SmartLinks() {
   const [newName, setNewName] = useState("");
   const [newUrl, setNewUrl] = useState("");
   const [newDesc, setNewDesc] = useState("");
+  const [newEmoji, setNewEmoji] = useState("");
   const [adminPin, setAdminPin] = useState("");
   const [pinUnlocked, setPinUnlocked] = useState(false);
   const [pinError, setPinError] = useState(false);
+
+  const previewEmoji = getEmojiFromText(newName, newDesc);
+  const displayEmoji = newEmoji.trim() || previewEmoji;
 
   useEffect(() => {
     const saved = localStorage.getItem("sbz_links");
@@ -120,13 +158,15 @@ export default function SmartLinks() {
         name: newName.trim(),
         url,
         desc: newDesc.trim() || "Visit link",
-        emoji: "🔗",
+        emoji:
+          newEmoji.trim() || getEmojiFromText(newName.trim(), newDesc.trim()),
       },
     ];
     saveLinks(next);
     setNewName("");
     setNewUrl("");
     setNewDesc("");
+    setNewEmoji("");
   };
 
   const removeLink = (id: number) => {
@@ -412,7 +452,11 @@ export default function SmartLinks() {
                     className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
                     style={{
                       background: "oklch(0.12 0.04 260)",
-                      border: `1px solid ${pinError ? "oklch(0.55 0.18 25)" : "oklch(0.73 0.12 82 / 0.3)"}`,
+                      border: `1px solid ${
+                        pinError
+                          ? "oklch(0.55 0.18 25)"
+                          : "oklch(0.73 0.12 82 / 0.3)"
+                      }`,
                       color: "oklch(0.93 0.03 88)",
                     }}
                     data-ocid="admin.pin.input"
@@ -473,19 +517,53 @@ export default function SmartLinks() {
                     }}
                     data-ocid="admin.url.input"
                   />
+                  {/* Description + live emoji preview */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Description (optional)"
+                      value={newDesc}
+                      onChange={(e) => setNewDesc(e.target.value)}
+                      className="w-full px-4 py-2.5 pr-14 rounded-xl text-sm outline-none"
+                      style={{
+                        background: "oklch(0.12 0.04 260)",
+                        border: "1px solid oklch(0.73 0.12 82 / 0.3)",
+                        color: "oklch(0.93 0.03 88)",
+                      }}
+                      data-ocid="admin.desc.input"
+                    />
+                    <div
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-lg select-none"
+                      style={{
+                        background: "oklch(0.73 0.12 82 / 0.15)",
+                        border: "1px solid oklch(0.73 0.12 82 / 0.3)",
+                        transition: "all 0.2s",
+                      }}
+                      title="Icon that will be used for this link"
+                    >
+                      {displayEmoji}
+                    </div>
+                  </div>
+                  {/* Emoji override */}
                   <input
                     type="text"
-                    placeholder="Description (optional)"
-                    value={newDesc}
-                    onChange={(e) => setNewDesc(e.target.value)}
+                    placeholder="Emoji override (optional, e.g. 🌿)"
+                    value={newEmoji}
+                    onChange={(e) => setNewEmoji(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
                     style={{
                       background: "oklch(0.12 0.04 260)",
                       border: "1px solid oklch(0.73 0.12 82 / 0.3)",
                       color: "oklch(0.93 0.03 88)",
                     }}
-                    data-ocid="admin.desc.input"
+                    data-ocid="admin.emoji.input"
                   />
+                  <p
+                    className="text-xs -mt-2 px-1"
+                    style={{ color: "oklch(0.60 0.07 82)" }}
+                  >
+                    Icon auto-detected · type an emoji above to override
+                  </p>
                   <button
                     type="button"
                     onClick={addLink}
@@ -517,6 +595,9 @@ export default function SmartLinks() {
                       className="flex items-center gap-3 py-2 border-b"
                       style={{ borderColor: "oklch(0.73 0.12 82 / 0.1)" }}
                     >
+                      <span className="text-base flex-shrink-0" title={l.emoji}>
+                        {l.emoji}
+                      </span>
                       <span
                         className="text-sm flex-1 truncate"
                         style={{ color: "oklch(0.85 0.05 88)" }}
