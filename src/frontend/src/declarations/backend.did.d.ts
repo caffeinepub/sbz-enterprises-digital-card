@@ -10,7 +10,22 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
-export interface _SERVICE {}
+export interface Link {
+  'id' : bigint,
+  'url' : string,
+  'desc' : string,
+  'name' : string,
+  'emoji' : string,
+}
+export interface _SERVICE {
+  'addLinkWithPin' : ActorMethod<
+    [string, string, string, string, string],
+    boolean
+  >,
+  'getAllLinks' : ActorMethod<[], Array<Link>>,
+  'getDefaultLinks' : ActorMethod<[], Array<Link>>,
+  'removeLinkWithPin' : ActorMethod<[bigint, string], boolean>,
+}
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];
 export declare const idlFactory: IDL.InterfaceFactory;

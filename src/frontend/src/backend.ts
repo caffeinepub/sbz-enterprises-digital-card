@@ -89,10 +89,77 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface Link {
+    id: bigint;
+    url: string;
+    desc: string;
+    name: string;
+    emoji: string;
+}
 export interface backendInterface {
+    addLinkWithPin(name: string, url: string, desc: string, emoji: string, pin: string): Promise<boolean>;
+    getAllLinks(): Promise<Array<Link>>;
+    getDefaultLinks(): Promise<Array<Link>>;
+    removeLinkWithPin(id: bigint, pin: string): Promise<boolean>;
 }
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
+    async addLinkWithPin(arg0: string, arg1: string, arg2: string, arg3: string, arg4: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addLinkWithPin(arg0, arg1, arg2, arg3, arg4);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addLinkWithPin(arg0, arg1, arg2, arg3, arg4);
+            return result;
+        }
+    }
+    async getAllLinks(): Promise<Array<Link>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllLinks();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllLinks();
+            return result;
+        }
+    }
+    async getDefaultLinks(): Promise<Array<Link>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getDefaultLinks();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getDefaultLinks();
+            return result;
+        }
+    }
+    async removeLinkWithPin(arg0: bigint, arg1: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.removeLinkWithPin(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.removeLinkWithPin(arg0, arg1);
+            return result;
+        }
+    }
 }
 export interface CreateActorOptions {
     agent?: Agent;

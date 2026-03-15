@@ -1,7 +1,9 @@
+import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Download,
   ExternalLink,
+  Loader2,
   Mail,
   MessageCircle,
   Plus,
@@ -9,8 +11,8 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import type { Variants } from "motion/react";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { useActor } from "../hooks/useActor";
 
 const VCARD = `BEGIN:VCARD
 VERSION:3.0
@@ -59,46 +61,8 @@ function getEmojiFromText(name: string, desc: string): string {
   return "🔗";
 }
 
-const DEFAULT_LINKS = [
-  {
-    id: 1,
-    name: "Main Website",
-    url: "https://web.sbze.in",
-    desc: "Corporate Hub",
-    emoji: "🌐",
-  },
-  {
-    id: 2,
-    name: "Rice Division",
-    url: "https://rice.sbze.in",
-    desc: "Premium Basmati & Rice Exports",
-    emoji: "🌾",
-  },
-  {
-    id: 3,
-    name: "Ivory Coast Commodities",
-    url: "https://ivc.sbze.in",
-    desc: "West Africa Trade",
-    emoji: "🌍",
-  },
-  {
-    id: 4,
-    name: "Cashew Division",
-    url: "https://kaju.sbze.in",
-    desc: "Premium Cashew Exports",
-    emoji: "🥜",
-  },
-  {
-    id: 5,
-    name: "Sunflower Oil Division",
-    url: "https://sunvia.sbze.in",
-    desc: "Edible Oil Exports",
-    emoji: "🌻",
-  },
-];
-
 type LinkItem = {
-  id: number;
+  id: bigint;
   name: string;
   url: string;
   desc: string;
@@ -117,7 +81,9 @@ const itemVariants: Variants = {
 
 export default function SmartLinks() {
   const navigate = useNavigate();
+  const { actor, isFetching } = useActor();
   const [links, setLinks] = useState<LinkItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAdmin, setShowAdmin] = useState(false);
   const [newName, setNewName] = useState("");
   const [newUrl, setNewUrl] = useState("");
@@ -126,51 +92,77 @@ export default function SmartLinks() {
   const [adminPin, setAdminPin] = useState("");
   const [pinUnlocked, setPinUnlocked] = useState(false);
   const [pinError, setPinError] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
 
   const previewEmoji = getEmojiFromText(newName, newDesc);
   const displayEmoji = newEmoji.trim() || previewEmoji;
 
-  useEffect(() => {
-    const saved = localStorage.getItem("sbz_links");
-    if (saved) {
-      try {
-        setLinks(JSON.parse(saved));
-      } catch {
-        setLinks(DEFAULT_LINKS);
-      }
-    } else {
-      setLinks(DEFAULT_LINKS);
+  const loadLinks = useCallback(async () => {
+    if (!actor) return;
+    try {
+      const result = await actor.getAllLinks();
+      setLinks(result);
+    } catch (_e) {
+      console.error("Failed to load links", _e);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [actor]);
 
-  const saveLinks = (updated: LinkItem[]) => {
-    setLinks(updated);
-    localStorage.setItem("sbz_links", JSON.stringify(updated));
-  };
+  useEffect(() => {
+    if (!isFetching && actor) {
+      loadLinks();
+    }
+  }, [actor, isFetching, loadLinks]);
 
-  const addLink = () => {
-    if (!newName.trim() || !newUrl.trim()) return;
+  const addLink = async () => {
+    if (!newName.trim() || !newUrl.trim() || !actor) return;
     const url = newUrl.startsWith("http") ? newUrl : `https://${newUrl}`;
-    const next = [
-      ...links,
-      {
-        id: Date.now(),
-        name: newName.trim(),
+    const emoji =
+      newEmoji.trim() || getEmojiFromText(newName.trim(), newDesc.trim());
+    setActionLoading(true);
+    setActionError("");
+    try {
+      const ok = await actor.addLinkWithPin(
+        newName.trim(),
         url,
-        desc: newDesc.trim() || "Visit link",
-        emoji:
-          newEmoji.trim() || getEmojiFromText(newName.trim(), newDesc.trim()),
-      },
-    ];
-    saveLinks(next);
-    setNewName("");
-    setNewUrl("");
-    setNewDesc("");
-    setNewEmoji("");
+        newDesc.trim() || "Visit link",
+        emoji,
+        adminPin,
+      );
+      if (ok) {
+        await loadLinks();
+        setNewName("");
+        setNewUrl("");
+        setNewDesc("");
+        setNewEmoji("");
+      } else {
+        setActionError("Failed to add link. Check PIN.");
+      }
+    } catch (_e) {
+      setActionError("Error adding link. Please try again.");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const removeLink = (id: number) => {
-    saveLinks(links.filter((l) => l.id !== id));
+  const removeLink = async (id: bigint) => {
+    if (!actor) return;
+    setActionLoading(true);
+    setActionError("");
+    try {
+      const ok = await actor.removeLinkWithPin(id, adminPin);
+      if (ok) {
+        await loadLinks();
+      } else {
+        setActionError("Failed to remove link. Check PIN.");
+      }
+    } catch (_e) {
+      setActionError("Error removing link. Please try again.");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const downloadVCard = () => {
@@ -209,7 +201,7 @@ export default function SmartLinks() {
         {/* Back button */}
         <motion.button
           variants={itemVariants}
-          onClick={() => navigate("/")}
+          onClick={() => navigate({ to: "/" })}
           className="flex items-center gap-2 mb-8 px-4 py-2 rounded-full text-sm"
           style={{
             color: "oklch(0.87 0.09 85)",
@@ -298,62 +290,86 @@ export default function SmartLinks() {
             Our Divisions
           </p>
         </motion.div>
-        <motion.div
-          variants={containerVariants}
-          className="flex flex-col gap-2.5 mb-6"
-        >
-          {links.map((div, i) => (
-            <motion.a
-              key={div.id}
-              variants={itemVariants}
-              href={div.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-4 p-4 rounded-2xl group"
-              style={{
-                background: "oklch(0.17 0.05 260)",
-                border: "1px solid oklch(0.73 0.12 82 / 0.25)",
-                textDecoration: "none",
-              }}
-              data-ocid={`links.division.item.${i + 1}`}
-            >
-              <div
-                className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center text-xl"
-                style={{
-                  background: "oklch(0.73 0.12 82 / 0.12)",
-                  border: "1px solid oklch(0.73 0.12 82 / 0.25)",
-                }}
+
+        {loading || isFetching ? (
+          <motion.div
+            variants={itemVariants}
+            className="flex items-center justify-center gap-2 py-10"
+            style={{ color: "oklch(0.73 0.12 82 / 0.7)" }}
+            data-ocid="links.loading_state"
+          >
+            <Loader2 size={18} className="animate-spin" />
+            <span className="text-sm">Loading links...</span>
+          </motion.div>
+        ) : (
+          <motion.div
+            variants={containerVariants}
+            className="flex flex-col gap-2.5 mb-6"
+          >
+            {links.length === 0 ? (
+              <motion.div
+                variants={itemVariants}
+                className="text-center py-8"
+                style={{ color: "oklch(0.55 0.07 82)" }}
+                data-ocid="links.empty_state"
               >
-                {div.emoji}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p
-                  className="text-sm font-bold"
-                  style={{ color: "oklch(0.92 0.05 88)" }}
+                <p className="text-sm">No links yet.</p>
+              </motion.div>
+            ) : (
+              links.map((div, i) => (
+                <motion.a
+                  key={String(div.id)}
+                  variants={itemVariants}
+                  href={div.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 p-4 rounded-2xl group"
+                  style={{
+                    background: "oklch(0.17 0.05 260)",
+                    border: "1px solid oklch(0.73 0.12 82 / 0.25)",
+                    textDecoration: "none",
+                  }}
+                  data-ocid={`links.division.item.${i + 1}`}
                 >
-                  {div.name}
-                </p>
-                <p
-                  className="text-xs mt-0.5"
-                  style={{ color: "oklch(0.68 0.07 82)" }}
-                >
-                  {div.desc}
-                </p>
-                <p
-                  className="text-xs mt-0.5 font-mono"
-                  style={{ color: "oklch(0.58 0.09 82)" }}
-                >
-                  {div.url.replace("https://", "")}
-                </p>
-              </div>
-              <ExternalLink
-                size={14}
-                className="flex-shrink-0"
-                style={{ color: "oklch(0.73 0.12 82 / 0.6)" }}
-              />
-            </motion.a>
-          ))}
-        </motion.div>
+                  <div
+                    className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center text-xl"
+                    style={{
+                      background: "oklch(0.73 0.12 82 / 0.12)",
+                      border: "1px solid oklch(0.73 0.12 82 / 0.25)",
+                    }}
+                  >
+                    {div.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className="text-sm font-bold"
+                      style={{ color: "oklch(0.92 0.05 88)" }}
+                    >
+                      {div.name}
+                    </p>
+                    <p
+                      className="text-xs mt-0.5"
+                      style={{ color: "oklch(0.68 0.07 82)" }}
+                    >
+                      {div.desc}
+                    </p>
+                    <p
+                      className="text-xs mt-0.5 font-mono"
+                      style={{ color: "oklch(0.58 0.09 82)" }}
+                    >
+                      {div.url.replace("https://", "")}
+                    </p>
+                  </div>
+                  <ExternalLink
+                    size={14}
+                    className="flex-shrink-0"
+                    style={{ color: "oklch(0.73 0.12 82 / 0.6)" }}
+                  />
+                </motion.a>
+              ))
+            )}
+          </motion.div>
+        )}
 
         {/* Divider */}
         <motion.div
@@ -564,10 +580,22 @@ export default function SmartLinks() {
                   >
                     Icon auto-detected · type an emoji above to override
                   </p>
+
+                  {actionError && (
+                    <p
+                      className="text-xs text-center"
+                      style={{ color: "oklch(0.65 0.18 25)" }}
+                      data-ocid="admin.error_state"
+                    >
+                      {actionError}
+                    </p>
+                  )}
+
                   <button
                     type="button"
                     onClick={addLink}
-                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold"
+                    disabled={actionLoading}
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60"
                     style={{
                       background:
                         "linear-gradient(135deg, oklch(0.60 0.14 78), oklch(0.80 0.12 83))",
@@ -575,7 +603,12 @@ export default function SmartLinks() {
                     }}
                     data-ocid="admin.add.button"
                   >
-                    <Plus size={14} /> Add Link
+                    {actionLoading ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Plus size={14} />
+                    )}
+                    Add Link
                   </button>
 
                   <div
@@ -591,7 +624,7 @@ export default function SmartLinks() {
                   </p>
                   {links.map((l, i) => (
                     <div
-                      key={l.id}
+                      key={String(l.id)}
                       className="flex items-center gap-3 py-2 border-b"
                       style={{ borderColor: "oklch(0.73 0.12 82 / 0.1)" }}
                     >
@@ -607,7 +640,8 @@ export default function SmartLinks() {
                       <button
                         type="button"
                         onClick={() => removeLink(l.id)}
-                        className="p-1.5 rounded-lg"
+                        disabled={actionLoading}
+                        className="p-1.5 rounded-lg disabled:opacity-60"
                         style={{
                           color: "oklch(0.60 0.18 25)",
                           background: "oklch(0.55 0.18 25 / 0.10)",

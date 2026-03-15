@@ -8,10 +8,46 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const idlService = IDL.Service({});
+export const Link = IDL.Record({
+  'id' : IDL.Nat,
+  'url' : IDL.Text,
+  'desc' : IDL.Text,
+  'name' : IDL.Text,
+  'emoji' : IDL.Text,
+});
+
+export const idlService = IDL.Service({
+  'addLinkWithPin' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Bool],
+      [],
+    ),
+  'getAllLinks' : IDL.Func([], [IDL.Vec(Link)], []),
+  'getDefaultLinks' : IDL.Func([], [IDL.Vec(Link)], ['query']),
+  'removeLinkWithPin' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Bool], []),
+});
 
 export const idlInitArgs = [];
 
-export const idlFactory = ({ IDL }) => { return IDL.Service({}); };
+export const idlFactory = ({ IDL }) => {
+  const Link = IDL.Record({
+    'id' : IDL.Nat,
+    'url' : IDL.Text,
+    'desc' : IDL.Text,
+    'name' : IDL.Text,
+    'emoji' : IDL.Text,
+  });
+  
+  return IDL.Service({
+    'addLinkWithPin' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Bool],
+        [],
+      ),
+    'getAllLinks' : IDL.Func([], [IDL.Vec(Link)], []),
+    'getDefaultLinks' : IDL.Func([], [IDL.Vec(Link)], ['query']),
+    'removeLinkWithPin' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Bool], []),
+  });
+};
 
 export const init = ({ IDL }) => { return []; };

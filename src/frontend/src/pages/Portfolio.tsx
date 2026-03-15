@@ -1,7 +1,7 @@
+import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { motion } from "motion/react";
 import type { Variants } from "motion/react";
-import { useNavigate } from "react-router-dom";
 
 const divisions = [
   {
@@ -64,7 +64,7 @@ export default function Portfolio() {
         {/* Back */}
         <motion.button
           variants={itemVariants}
-          onClick={() => navigate("/")}
+          onClick={() => navigate({ to: "/" })}
           className="flex items-center gap-2 mb-8 px-4 py-2 rounded-full text-sm transition-all"
           style={{
             color: "oklch(0.73 0.12 82)",

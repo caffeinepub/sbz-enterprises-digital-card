@@ -1,7 +1,6 @@
 import { Globe, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { motion } from "motion/react";
 import type { Variants } from "motion/react";
-import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 
 const containerVariants: Variants = {
@@ -23,13 +22,15 @@ const iconSty = { color: "oklch(0.80 0.12 82)", flexShrink: 0 as const };
 const textSty = { color: "oklch(0.93 0.03 88)" };
 
 export default function BusinessCard() {
-  const [origin, setOrigin] = useState("");
+  const [qrUrl, setQrUrl] = useState("");
 
   useEffect(() => {
-    setOrigin(window.location.origin);
+    const linksUrl = `${window.location.origin}/links`;
+    const encoded = encodeURIComponent(linksUrl);
+    setQrUrl(
+      `https://api.qrserver.com/v1/create-qr-code/?data=${encoded}&size=180x180&bgcolor=FFFFFF&color=0A1628&margin=4`,
+    );
   }, []);
-
-  const qrValue = origin ? `${origin}/links` : "https://web.sbze.in";
 
   return (
     <div
@@ -219,13 +220,24 @@ export default function BusinessCard() {
                     "0 0 0 3px oklch(0.73 0.12 82 / 0.5), 0 8px 30px oklch(0.05 0.03 255 / 0.6)",
                 }}
               >
-                <QRCodeSVG
-                  value={qrValue}
-                  size={180}
-                  fgColor="#0A1628"
-                  bgColor="#FFFFFF"
-                  level="M"
-                />
+                {qrUrl ? (
+                  <img
+                    src={qrUrl}
+                    alt="QR Code to SBZ Links"
+                    width={180}
+                    height={180}
+                    style={{ display: "block" }}
+                  />
+                ) : (
+                  <div
+                    className="flex items-center justify-center"
+                    style={{ width: 180, height: 180 }}
+                  >
+                    <span style={{ color: "#0A1628", fontSize: 12 }}>
+                      Loading QR...
+                    </span>
+                  </div>
+                )}
               </div>
 
               <p
